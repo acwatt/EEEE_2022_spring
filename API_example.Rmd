@@ -1,0 +1,204 @@
+---
+title: "Untitled"
+author: "Aaron Watt"
+date: "2/17/2022"
+output: html_document
+---
+
+1. Open Datahub and start the install of packages
+2. Introduce the internet -- series of tubes
+3. Introduce the goal and agenda
+1. Walk through the EPA API website
+2. Look at the API results in the browser for Hawaii
+3. Look at the API results in Rstudio
+4. Get API results in to dataframes
+5. Group work: get results for Berkeley, PM2.5 (hint, both SO2 and PM2.5 are criteria pollutants)
+5. Map results for Hawaii sites
+6. Group work: map results for Berkeley
+7. Graph PM2.5 over time for Hawaii
+8. Group work: graph PM2.5 for Berkeley
+
+
+
+# Using the EPA Air Quality System (AQS) API to get pollution data
+
+Our goal is to download data for Berkeley's PM2.5 pollution and map it.
+
+## Packages
+```{r}
+# install.packages(c("tidyverse", "httr", "jsonlite", "mapview", "sf", "usmap", "rnaturalearth"))
+library(httr)
+library(jsonlite)
+library(mapview)
+library(sf)
+library(ggplot2)
+library(usmap)
+library(rnaturalearth)
+library(tidyverse)
+```
+
+
+1. We need to setup an account with the AQS API. We can do this through the API
+```{r, cache=T}
+email = "aaron@acwatt.net"
+url = paste0("https://aqs.epa.gov/data/api/signup?email=", email)
+result = GET(url)
+```
+
+```{r}
+# print result -- fairly nice looking
+result
+
+# print actual content -- unicode
+result$content
+
+# Translate from unicode to human-readable (turns out it's JSON)
+rawToChar(result$content)
+
+# Translate from JSON (named list)
+output <- fromJSON(rawToChar(result$content))
+
+# Get the data (dataframe)
+data = output$Data
+```
+
+
+Take a look at the "Status" part of the response (200). What does this mean?
+
+![HTTP status codes](http_status_codes.jpeg)
+
+
+## Get a list of air quality monitors in Alameda county
+
+The API instructions tell us this is the type of URL we need to request to get a
+list of monitors in a county:
+`https://aqs.epa.gov/data/api/monitors/byCounty?email=test@aqs.api&key=test&param=42401&bdate=20150501&edate=20150502&state=15&county=003`
+
+
+Let's break this up:
+`https://aqs.epa.gov/data/api/monitors/byCounty`... \
+...`?email=test@aqs.api` \
+...`&key=test` \
+...`&param=42401` \
+...`&bdate=20150501` \
+...`&edate=20150502` \
+...`&state=15` \
+...`&county=003`
+
+### What is this requesting?
+- making a request from email address `test@aqs.api`
+- using the API key (like a login password) to make the request: `test`
+- asking for data on the parameter `42401` (what's that?)
+- beginning date `20150501` = 2015-05-0
+- end date `20150502` = 2015-05-02
+- state with code `15`
+- county with code `056`
+
+
+
+```{r}
+cali_fips = "06"
+alameda_fips = "001"
+"https://aqs.epa.gov/data/api/monitors/byCounty?email=test@aqs.api&key=test&param=42401&bdate=20150501&edate=20150502&state=15&county=056"
+```
+
+
+
+
+
+
+
+
+
+```{r}
+state = "15"
+county = "003"
+param = "42401"
+bdate = "20150101"
+edate = "20150101"
+testemail = "test@aqs.api"
+testkey = "test"
+
+daily_summary_by_county <- function(param, state, county, bdate, edate, email, api_key) {
+  url <- sprintf("https://aqs.epa.gov/data/api/dailyData/byCounty?email=%s&key=%s&param=%s&bdate=%s&edate=%s&state=%s&county=%s", email, api_key, param, bdate, edate, state, county)
+  result <- GET(url)
+  output <- fromJSON(rawToChar(result$content))
+  data = output$Data
+  return(data)
+}
+
+data = daily_summary_by_county(param, state, county, bdate, edate, testemail, testkey)
+data = data %>% filter(sample_duration == "24-HR BLK AVG")
+
+datum = unique(data$datum)[1]
+crs1 <- st_crs(datum)
+mapview(data, xcol = "longitude", ycol = "latitude", zcol = "arithmetic_mean", crs = crs1, grid = T)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Helpful links:
+
+EPA AQS API Doc:\
+[`https://aqs.epa.gov/aqsweb/documents/data_api.html`](https://aqs.epa.gov/aqsweb/documents/data_api.html)
+
+Parameter classes:\
+[`https://aqs.epa.gov/data/api/list/classes?email=test@aqs.api&key=test`](https://aqs.epa.gov/data/api/list/classes?email=test@aqs.api&key=test)
+
+Parameters in Criteria pollutant class:\
+[`https://aqs.epa.gov/data/api/list/parametersByClass?email=test@aqs.api&key=test&pc=CRITERIA`](https://aqs.epa.gov/data/api/list/parametersByClass?email=test@aqs.api&key=test&pc=CRITERIA)\
+
+Sites by county:\
+[`https://aqs.epa.gov/data/api/list/sitesByCounty?email=test@aqs.api&key=test&state=15&county=003`](https://aqs.epa.gov/data/api/list/sitesByCounty?email=test@aqs.api&key=test&state=15&county=003)\\
+
+Monitors by county:\
+[`https://aqs.epa.gov/data/api/monitors/byCounty?email=test@aqs.api&key=test&param=42401&bdate=20150501&edate=20150502&state=15&county=001`](https://aqs.epa.gov/data/api/monitors/byCounty?email=test@aqs.api&key=test&param=42401&bdate=20150501&edate=20150502&state=15&county=001)
+
+Monitors by site:\
+[`https://aqs.epa.gov/data/api/monitors/bySite?email=test@aqs.api&key=test&param=42401&bdate=20150501&edate=20150502&state=15&county=003&site=1001`](https://aqs.epa.gov/data/api/monitors/bySite?email=test@aqs.api&key=test&param=42401&bdate=20150501&edate=20150502&state=15&county=003&site=1001)
+
+Daily summary by site:\
+[`https://aqs.epa.gov/data/api/dailyData/bySite?email=test@aqs.api&key=test&param=42401&bdate=20150501&edate=20150502&state=15&county=003&site=1001`](https://aqs.epa.gov/data/api/dailyData/bySite?email=test@aqs.api&key=test&param=42401&bdate=20150501&edate=20150502&state=15&county=003&site=1001)
+
+Daily summary by county:\
+[`https://aqs.epa.gov/data/api/dailyData/byCounty?email=test@aqs.api&key=test&param=42401&bdate=20150501&edate=20150502&state=15&county=003`](https://aqs.epa.gov/data/api/dailyData/byCounty?email=test@aqs.api&key=test&param=42401&bdate=20150501&edate=20150502&state=15&county=003)
+
+
+
+Sample Data by site:\
+[`https://aqs.epa.gov/data/api/sampleData/bySite?email=test@aqs.api&key=test&param=42401&bdate=20150501&edate=20150502&state=15&county=003&site=1001`]()
+
+Sample Data by county:\
+[``]()
+
+
+Berkeley is site "0001"
+
+
+
+
+
+
+
+
+
