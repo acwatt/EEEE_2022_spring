@@ -32,8 +32,8 @@ library(jsonlite)
 library(mapview)
 library(sf)
 library(ggplot2)
-library(usmap)
-library(rnaturalearth)
+# library(usmap)
+# library(rnaturalearth)
 library(tidyverse)
 ```
 
@@ -132,7 +132,7 @@ data = data %>% filter(sample_duration == "24-HR BLK AVG")
 
 datum = unique(data$datum)[1]
 crs1 <- st_crs(datum)
-mapview(data, xcol = "longitude", ycol = "latitude", zcol = "arithmetic_mean", crs = crs1, grid = T)
+mapview(data, xcol = "longitude", ycol = "latitude", zcol = "arithmetic_mean", crs = crs1, grid = FALSE)
 ```
 
 
