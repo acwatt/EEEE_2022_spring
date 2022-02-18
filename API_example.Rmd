@@ -39,7 +39,7 @@ library(tidyverse)
 
 
 1. We need to setup an account with the AQS API. We can do this through the API
-```{r, cache=T}
+```{r, cache=T, eval=F}
 email = "aaron@acwatt.net"
 url = paste0("https://aqs.epa.gov/data/api/signup?email=", email)
 result = GET(url)
@@ -95,6 +95,8 @@ Let's break this up:
 - county with code `056`
 
 
+## RESTful API
+
 
 ```{r}
 cali_fips = "06"
@@ -104,6 +106,60 @@ alameda_fips = "001"
 
 
 
+```{r}
+state = "15"
+county = "003"
+param = "42401"
+bdate = "20150101"
+edate = "20150101"
+testemail = "test@aqs.api"
+testkey = "test"
+```
+
+## Method 1: `paste0()`
+```{r}
+paste("a", "b")
+paste0("a", "b")
+paste0("a", "b", "c", "d")
+```
+
+
+```{r}
+url1 <- paste0("https://aqs.epa.gov/data/api/dailyData/byCounty?email=", email, 
+               "&key=", api_key, "&param=", param, 
+               "&bdate=", bdate, "&edate=", edate, 
+               "&state=", state, "&county=", county)
+result <- GET(url)
+```
+
+
+
+
+## Method 2: `sprintf()`
+```{r}
+sprintf("Put text here: %s", "TEST")
+sprintf("Put text here: [%s] and here: [%s]", "TEST1", "TEST2")
+sprintf("I would like some %s and %s", "vegan beef stromboli", "diet coke")
+```
+
+```{r}
+url2 <- sprintf("https://aqs.epa.gov/data/api/dailyData/byCounty?email=%s&key=%s&param=%s&bdate=%s&edate=%s&state=%s&county=%s",
+                email, api_key, param, bdate, edate, state, county)
+result <- GET(url)
+```
+
+
+
+## Method 3: `GET` has it's own method: `query`
+
+```{r}
+url3 <- "https://aqs.epa.gov/data/api/dailyData/byCounty"
+result3 <- GET(url3,
+              query = list(param = param, state = state, county = county,
+                           bdate = bdate, edate = edate, 
+                           email = email, key = api_key))
+result <- GET(url)
+```
 
 
 
@@ -120,6 +176,11 @@ testemail = "test@aqs.api"
 testkey = "test"
 
 daily_summary_by_county <- function(param, state, county, bdate, edate, email, api_key) {
+  url1 <- "https://aqs.epa.gov/data/api/dailyData/byCounty"
+  result <- GET(url1,
+                query = list(param = param, state = state, county = county,
+                             bdate = bdate, edate = edate, 
+                             email = email, key = api_key))
   url <- sprintf("https://aqs.epa.gov/data/api/dailyData/byCounty?email=%s&key=%s&param=%s&bdate=%s&edate=%s&state=%s&county=%s", email, api_key, param, bdate, edate, state, county)
   result <- GET(url)
   output <- fromJSON(rawToChar(result$content))
